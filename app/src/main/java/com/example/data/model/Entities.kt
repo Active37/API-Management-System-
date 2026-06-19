@@ -21,3 +21,12 @@ data class ApiKey(
     val isActive: Boolean = true,
     val roleId: Int              // Points to a Role.id
 )
+
+@Entity(tableName = "security_events")
+data class SecurityEvent(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val eventType: String,       // "KEY_CREATED", "KEY_DELETED", "KEY_ROTATED", "KEY_STATUS_CHANGED", "ROLE_CREATED", "ROLE_UPDATED", "ROLE_DELETED"
+    val affectedName: String,    // E.g., Name of the key or role affected
+    val details: String,         // Description of what changed
+    val timestamp: Long = System.currentTimeMillis()
+)

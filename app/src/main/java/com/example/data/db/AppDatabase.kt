@@ -6,11 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.model.ApiKey
 import com.example.data.model.Role
+import com.example.data.model.SecurityEvent
 
-@Database(entities = [Role::class, ApiKey::class], version = 1, exportSchema = false)
+@Database(entities = [Role::class, ApiKey::class, SecurityEvent::class], version = 2, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun roleDao(): RoleDao
     abstract fun apiKeyDao(): ApiKeyDao
+    abstract fun securityEventDao(): SecurityEventDao
 
     companion object {
         @Volatile

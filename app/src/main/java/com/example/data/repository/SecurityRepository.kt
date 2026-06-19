@@ -2,18 +2,25 @@ package com.example.data.repository
 
 import com.example.data.db.ApiKeyDao
 import com.example.data.db.RoleDao
+import com.example.data.db.SecurityEventDao
 import com.example.data.model.ApiKey
 import com.example.data.model.Role
+import com.example.data.model.SecurityEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import java.util.UUID
 
 class SecurityRepository(
     private val roleDao: RoleDao,
-    private val apiKeyDao: ApiKeyDao
+    private val apiKeyDao: ApiKeyDao,
+    private val securityEventDao: SecurityEventDao
 ) {
     val allRolesFlow: Flow<List<Role>> = roleDao.getAllRolesFlow()
     val allApiKeysFlow: Flow<List<ApiKey>> = apiKeyDao.getAllApiKeysFlow()
+    val allSecurityEventsFlow: Flow<List<SecurityEvent>> = securityEventDao.getAllSecurityEventsFlow()
+
+    suspend fun insertSecurityEvent(event: SecurityEvent) = securityEventDao.insertSecurityEvent(event)
+    suspend fun clearAllSecurityEvents() = securityEventDao.clearAllSecurityEvents()
 
     suspend fun getAllRoles(): List<Role> = roleDao.getAllRoles()
     suspend fun getRoleById(id: Int): Role? = roleDao.getRoleById(id)

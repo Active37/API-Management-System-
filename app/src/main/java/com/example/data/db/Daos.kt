@@ -3,6 +3,7 @@ package com.example.data.db
 import androidx.room.*
 import com.example.data.model.ApiKey
 import com.example.data.model.Role
+import com.example.data.model.SecurityEvent
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -48,4 +49,16 @@ interface ApiKeyDao {
 
     @Update
     suspend fun updateApiKey(key: ApiKey)
+}
+
+@Dao
+interface SecurityEventDao {
+    @Query("SELECT * FROM security_events ORDER BY timestamp DESC")
+    fun getAllSecurityEventsFlow(): Flow<List<SecurityEvent>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSecurityEvent(event: SecurityEvent): Long
+
+    @Query("DELETE FROM security_events")
+    suspend fun clearAllSecurityEvents()
 }

@@ -49,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.api.RetrofitGeminiClient
 import com.example.data.model.ApiKey
 import com.example.data.model.Role
+import com.example.data.model.SecurityEvent
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.SecurityViewModel
 import com.example.ui.viewmodel.SecurityViewModelFactory
@@ -78,7 +79,8 @@ enum class ConsoleTab(val title: String, val icon: ImageVector) {
     ROLES("RBAC Roles", Icons.Default.Settings),
     SANDBOX("Auth Sandbox", Icons.Default.PlayArrow),
     SNIPPETS("SDK Snippets", Icons.Default.Build),
-    AUDIT("AI Audit", Icons.Default.Warning)
+    AUDIT("AI Audit", Icons.Default.Warning),
+    HISTORY("Audit History", Icons.Default.List)
 }
 
 @Composable
@@ -92,6 +94,7 @@ fun SecurityApp(
     val terminalOutput by viewModel.terminalOutput.collectAsStateWithLifecycle()
     val isAuditing by viewModel.isAuditing.collectAsStateWithLifecycle()
     val auditReport by viewModel.auditReport.collectAsStateWithLifecycle()
+    val securityEvents by viewModel.securityEvents.collectAsStateWithLifecycle()
 
     var currentTab by remember { mutableStateOf(ConsoleTab.KEYS) }
 
@@ -273,6 +276,7 @@ fun SecurityApp(
                 ConsoleTab.SANDBOX -> SandboxTabScreen(apiKeys = apiKeys, roles = roles, terminalOutput = terminalOutput, viewModel = viewModel, context = context)
                 ConsoleTab.SNIPPETS -> SnippetsTabScreen(apiKeys = apiKeys, roles = roles, context = context)
                 ConsoleTab.AUDIT -> AuditTabScreen(auditReport = auditReport, isAuditing = isAuditing, viewModel = viewModel)
+                ConsoleTab.HISTORY -> HistoryTabScreen(securityEvents = securityEvents, viewModel = viewModel)
             }
         }
     }
@@ -2122,4 +2126,201 @@ fun EmptyListPlaceholder(
 // --- HELPER EXTENSIONS FOR BUSINESS ENTITY MAPPINGS ---
 private fun ApiKey.constrainRole(roles: List<Role>): Role? {
     return roles.find { it.id == this.roleId }
+}
+
+@Composable
+fun HistoryTabScreen(
+    securityEvents: List<SecurityEvent>,
+    viewModel: SecurityViewModel
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Security Audit Log",
+                    color = TextWhite,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Continuous developer audit trail of key and policy transactions.",
+                    color = TextMuted,
+                    fontSize = 11.sp
+                )
+            }
+
+            if (securityEvents.isNotEmpty()) {
+                Button(
+                    onClick = { viewModel.clearAllSecurityEvents() },
+                    colors = ButtonDefaults.buttonColors(containerColor = WarningOrange.copy(alpha = 0.2f), contentColor = WarningOrange),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, WarningOrange.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier
+                        .testTag("clear_logs_button")
+                        .height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Clear Logs",
+                        tint = WarningOrange,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Clear Logs", 
+                        fontSize = 11.sp, 
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (securityEvents.isEmpty()) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, BorderMuted, RoundedCornerShape(8.dp)),
+                colors = CardDefaults.cardColors(containerColor = SlateSurface)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "No events logged yet",
+                        tint = TextMuted,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Vulnerability Ledger Empty",
+                        color = TextWhite,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "All future credentials modifications, rotations, as well as role creations will be securely journalled in this console ledger.",
+                        color = TextMuted,
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
+                items(securityEvents) { event ->
+                    val colorScheme = when (event.eventType) {
+                        "KEY_CREATED" -> Pair(NeonEmerald, NeonEmerald.copy(alpha = 0.15f))
+                        "KEY_ROTATED" -> Pair(NeonCyan, NeonCyan.copy(alpha = 0.15f))
+                        "KEY_STATUS_CHANGED" -> Pair(TextWhite, SlateSurface)
+                        "KEY_DELETED" -> Pair(WarningOrange, WarningOrange.copy(alpha = 0.15f))
+                        "PERMISSION_CHANGED" -> Pair(WarningOrange, WarningOrange.copy(alpha = 0.15f))
+                        else -> Pair(TextMuted, SlateSurface)
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderMuted, RoundedCornerShape(8.dp))
+                            .testTag("security_event_item_${event.id}"),
+                        colors = CardDefaults.cardColors(containerColor = SlateSurface)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            // Event indicator / icon
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(colorScheme.second)
+                                    .border(1.dp, colorScheme.first.copy(alpha = 0.4f), RoundedCornerShape(6.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = when (event.eventType) {
+                                        "KEY_CREATED" -> Icons.Default.Add
+                                        "KEY_ROTATED" -> Icons.Default.Refresh
+                                        "KEY_STATUS_CHANGED" -> Icons.Default.Lock
+                                        "KEY_DELETED" -> Icons.Default.Delete
+                                        "PERMISSION_CHANGED" -> Icons.Default.Settings
+                                        else -> Icons.Default.Info
+                                    },
+                                    contentDescription = event.eventType,
+                                    tint = colorScheme.first,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = event.eventType.replace("_", " "),
+                                        color = colorScheme.first,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    
+                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                                    Text(
+                                        text = sdf.format(java.util.Date(event.timestamp)),
+                                        color = TextMuted,
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "Affected Entity: ${event.affectedName}",
+                                    color = TextWhite,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+
+                                Spacer(modifier = Modifier.height(2.dp))
+
+                                Text(
+                                    text = event.details,
+                                    color = TextMuted,
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

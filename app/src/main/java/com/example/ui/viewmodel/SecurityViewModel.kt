@@ -10,6 +10,7 @@ import com.example.data.api.RetrofitGeminiClient
 import com.example.data.db.AppDatabase
 import com.example.data.model.ApiKey
 import com.example.data.model.Role
+import com.example.data.model.SecurityEvent
 import com.example.data.repository.SecurityRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,6 +43,13 @@ class SecurityViewModel(
             initialValue = emptyList()
         )
 
+    val securityEvents: StateFlow<List<SecurityEvent>> = repository.allSecurityEventsFlow
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     private val _isAuditing = MutableStateFlow(false)
     val isAuditing: StateFlow<Boolean> = _isAuditing.asStateFlow()
 
@@ -68,19 +76,39 @@ class SecurityViewModel(
             repository.insertRole(
                 Role(name = name, description = description, permissions = cleanedPermissions)
             )
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "PERMISSION_CHANGED",
+                    affectedName = name,
+                    details = "Created Role '$name' with permissions: '$cleanedPermissions'"
+                )
+            )
         }
     }
 
     fun updateRole(role: Role) {
         viewModelScope.launch {
             repository.updateRole(role)
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "PERMISSION_CHANGED",
+                    affectedName = role.name,
+                    details = "Updated Role '${role.name}' permissions: '${role.permissions}'"
+                )
+            )
         }
     }
 
     fun deleteRole(role: Role) {
         viewModelScope.launch {
             repository.deleteRole(role)
-            // Cleanup orphaned keys or let them survive as unassigned
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "PERMISSION_CHANGED",
+                    affectedName = role.name,
+                    details = "Deleted Role '${role.name}' with permissions: '${role.permissions}'"
+                )
+            )
         }
     }
 
@@ -108,18 +136,44 @@ class SecurityViewModel(
                     isActive = true
                 )
             )
+
+            val boundRole = repository.getRoleById(roleId)
+            val roleName = boundRole?.name ?: "Unknown Role"
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "KEY_CREATED",
+                    affectedName = name,
+                    details = "Created credential ($environment) bound to role '$roleName'"
+                )
+            )
         }
     }
 
     fun toggleKeyStatus(apiKey: ApiKey) {
         viewModelScope.launch {
-            repository.updateApiKey(apiKey.copy(isActive = !apiKey.isActive))
+            val nextStatus = !apiKey.isActive
+            repository.updateApiKey(apiKey.copy(isActive = nextStatus))
+            val statusString = if (nextStatus) "Activated" else "Deactivated"
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "KEY_STATUS_CHANGED",
+                    affectedName = apiKey.name,
+                    details = "$statusString credential with env '${apiKey.environment}'"
+                )
+            )
         }
     }
 
     fun deleteApiKey(apiKey: ApiKey) {
         viewModelScope.launch {
             repository.deleteApiKey(apiKey)
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "KEY_DELETED",
+                    affectedName = apiKey.name,
+                    details = "Deleted credential with env '${apiKey.environment}'"
+                )
+            )
         }
     }
 
@@ -142,6 +196,13 @@ class SecurityViewModel(
                     createdAt = System.currentTimeMillis()
                 )
             )
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "KEY_ROTATED",
+                    affectedName = apiKey.name,
+                    details = "Rotated credential credentials with environment '${apiKey.environment}'"
+                )
+            )
         }
     }
 
@@ -154,6 +215,19 @@ class SecurityViewModel(
                     createdAt = System.currentTimeMillis() - ninetyFiveDaysMs
                 )
             )
+            repository.insertSecurityEvent(
+                SecurityEvent(
+                    eventType = "KEY_STATUS_CHANGED",
+                    affectedName = apiKey.name,
+                    details = "Simulated age over 90 days for API key: ${apiKey.name}"
+                )
+            )
+        }
+    }
+
+    fun clearAllSecurityEvents() {
+        viewModelScope.launch {
+            repository.clearAllSecurityEvents()
         }
     }
 
@@ -438,7 +512,7 @@ class SecurityViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(SecurityViewModel::class.java)) {
             val db = AppDatabase.getDatabase(application)
-            val repository = SecurityRepository(db.roleDao(), db.apiKeyDao())
+            val repository = SecurityRepository(db.roleDao(), db.apiKeyDao(), db.securityEventDao())
             return SecurityViewModel(application, repository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
