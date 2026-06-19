@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
+import com.example.data.util.KeyGeneratorUtils
+
 class SecurityViewModel(
     application: Application,
     private val repository: SecurityRepository
@@ -83,16 +85,19 @@ class SecurityViewModel(
     }
 
     // --- Key Management Operations ---
-    fun addApiKey(name: String, environment: String, roleId: Int) {
+    fun addApiKey(name: String, environment: String, roleId: Int, customKey: String? = null) {
         viewModelScope.launch {
-            // Generate a realistic looking key string with environment prefix
-            val prefix = when(environment.lowercase()) {
-                "production" -> "sk_prod_"
-                "staging" -> "sk_staging_"
-                else -> "sk_dev_"
+            val keyString = if (!customKey.isNullOrBlank()) {
+                customKey.trim()
+            } else {
+                val prefix = when(environment.lowercase()) {
+                    "production" -> "sk_prod"
+                    "staging" -> "sk_staging"
+                    else -> "sk_dev"
+                }
+                // Default secure generator producing a strong 32-char Base58 alphanumeric token
+                KeyGeneratorUtils.assembleKey(prefix = prefix, length = 32, format = "base58")
             }
-            val randomSegment = UUID.randomUUID().toString().replace("-", "").take(16)
-            val keyString = "$prefix$randomSegment"
             
             repository.insertApiKey(
                 ApiKey(

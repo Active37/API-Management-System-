@@ -311,6 +311,30 @@ fun KeysTabScreen(
     var expandedEnvDropdown by remember { mutableStateOf(false) }
     var expandedRoleDropdown by remember { mutableStateOf(false) }
 
+    // Workbench Generator States
+    var keyFormat by remember { mutableStateOf("base58") }
+    var keyLength by remember { mutableStateOf(32) }
+    var triggerRegenCounter by remember { mutableStateOf(0) }
+    var generatedKey by remember { mutableStateOf("") }
+    var generatorCopied by remember { mutableStateOf(false) }
+
+    // Smooth regenerate preview key whenever formats or constraints update
+    LaunchedEffect(selectedEnv, keyFormat, keyLength, triggerRegenCounter) {
+        val prefix = when(selectedEnv.lowercase()) {
+            "production" -> "sk_prod"
+            "staging" -> "sk_staging"
+            else -> "sk_dev"
+        }
+        generatedKey = com.example.data.util.KeyGeneratorUtils.assembleKey(prefix, keyLength, keyFormat)
+    }
+
+    LaunchedEffect(generatorCopied) {
+        if (generatorCopied) {
+            kotlinx.coroutines.delay(1800)
+            generatorCopied = false
+        }
+    }
+
     // Bootstrap initial selected role
     LaunchedEffect(roles) {
         if (selectedRoleId == null && roles.isNotEmpty()) {
@@ -491,6 +515,209 @@ fun KeysTabScreen(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // --- VISUAL COPIABLE SECURE CRYPTO KEY WORKBENCH ---
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, BorderMuted, RoundedCornerShape(8.dp)),
+                        colors = CardDefaults.cardColors(containerColor = TerminalBlack)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            // Header
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Generator Icon",
+                                        tint = NeonCyan,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "LIVE SECURE GENERATOR",
+                                        color = TextWhite,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+
+                                // Interactive refresh trigger
+                                Text(
+                                    text = "REGEN ⟳",
+                                    color = NeonCyan,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier
+                                        .clickable { triggerRegenCounter++ }
+                                        .testTag("regenerate_key_button")
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Config Row 1: Entropy Character Format
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "FORMAT PROFILE:",
+                                    color = TextMuted,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    listOf("base58", "hex", "base64", "alphanumeric").forEach { fmt ->
+                                        val isSelected = keyFormat == fmt
+                                        val label = when(fmt) {
+                                            "base58" -> "B58"
+                                            "hex" -> "HEX"
+                                            "base64" -> "B64"
+                                            else -> "ALPHA"
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (isSelected) NeonCyan.copy(alpha = 0.2f) else SlateSurface)
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = if (isSelected) NeonCyan else BorderMuted,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                                .clickable { keyFormat = fmt }
+                                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = label,
+                                                color = if (isSelected) NeonCyan else TextMuted,
+                                                fontSize = 8.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Config Row 2: Length Config
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "KEY STRENGTH (LENGTH):",
+                                    color = TextMuted,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    listOf(16, 24, 32, 48, 64).forEach { len ->
+                                        val isSelected = keyLength == len
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(if (isSelected) NeonCyan.copy(alpha = 0.2f) else SlateSurface)
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = if (isSelected) NeonCyan else BorderMuted,
+                                                    shape = RoundedCornerShape(4.dp)
+                                                )
+                                                .clickable { keyLength = len }
+                                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                        ) {
+                                            Text(
+                                                text = len.toString(),
+                                                color = if (isSelected) NeonCyan else TextMuted,
+                                                fontSize = 8.sp,
+                                                fontFamily = FontFamily.Monospace,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Terminal style preview with visual clip copy status
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(SlateSurface)
+                                    .border(1.dp, BorderMuted, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = generatedKey,
+                                    color = NeonCyan,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Spacer(modifier = Modifier.width(6.dp))
+
+                                // Dynamic Visual Copy Button with state feedback
+                                Button(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        val clip = ClipData.newPlainText("Secure API Key", generatedKey)
+                                        clipboard.setPrimaryClip(clip)
+                                        generatorCopied = true
+                                        Toast.makeText(context, "Secure API Key copied!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (generatorCopied) NeonEmerald else BorderMuted
+                                    ),
+                                    shape = RoundedCornerShape(4.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                    modifier = Modifier
+                                        .height(26.dp)
+                                        .testTag("copy_generated_key_button")
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = if (generatorCopied) Icons.Default.Check else Icons.Default.Share,
+                                            contentDescription = "Copy Status Icon",
+                                            tint = if (generatorCopied) TerminalBlack else NeonCyan,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (generatorCopied) "COPIED ✓" else "COPY",
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = if (generatorCopied) TerminalBlack else TextWhite
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Submit Generation Action Trigger
@@ -505,7 +732,7 @@ fun KeysTabScreen(
                                 Toast.makeText(context, "An active role assignment is required", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
-                            viewModel.addApiKey(keyName.trim(), selectedEnv, roleIdToAssign)
+                            viewModel.addApiKey(keyName.trim(), selectedEnv, roleIdToAssign, generatedKey)
                             keyName = ""
                             showForm = false
                             Toast.makeText(context, "API Key successfully generated and encrypted!", Toast.LENGTH_SHORT).show()
@@ -560,6 +787,14 @@ fun ApiKeyCard(
     context: Context
 ) {
     var revealed by remember { mutableStateOf(false) }
+    var isCopied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isCopied) {
+        if (isCopied) {
+            kotlinx.coroutines.delay(1500)
+            isCopied = false
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -690,6 +925,7 @@ fun ApiKeyCard(
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             val clip = ClipData.newPlainText("API Key Vault", apiKey.keyString)
                             clipboard.setPrimaryClip(clip)
+                            isCopied = true
                             Toast.makeText(context, "API Key copied to clipboard!", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier
@@ -697,9 +933,9 @@ fun ApiKeyCard(
                             .testTag("copy_key_button_${apiKey.id}")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Share, // Share as copy surrogate from core
-                            contentDescription = "Copy key to clipboard",
-                            tint = NeonCyan,
+                            imageVector = if (isCopied) Icons.Default.Check else Icons.Default.Share,
+                            contentDescription = "Copy key to clipboard status",
+                            tint = if (isCopied) NeonEmerald else NeonCyan,
                             modifier = Modifier.size(16.dp)
                         )
                     }
