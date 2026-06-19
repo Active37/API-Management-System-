@@ -123,6 +123,40 @@ class SecurityViewModel(
         }
     }
 
+    fun rotateApiKey(apiKey: ApiKey) {
+        viewModelScope.launch {
+            val prefix = when(apiKey.environment.lowercase()) {
+                "production" -> "sk_prod"
+                "staging" -> "sk_staging"
+                else -> "sk_dev"
+            }
+            // Generate a fresh key matching current key's strength/length
+            val newKey = KeyGeneratorUtils.assembleKey(
+                prefix = prefix,
+                length = apiKey.keyString.length.coerceAtLeast(32),
+                format = if (apiKey.keyString.length >= 40) "base64" else "base58"
+            )
+            repository.updateApiKey(
+                apiKey.copy(
+                    keyString = newKey,
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
+    fun simulateAging(apiKey: ApiKey) {
+        viewModelScope.launch {
+            // Set age to 95 days ago (8,208,000,000 milliseconds)
+            val ninetyFiveDaysMs = 95L * 24 * 60 * 60 * 1000
+            repository.updateApiKey(
+                apiKey.copy(
+                    createdAt = System.currentTimeMillis() - ninetyFiveDaysMs
+                )
+            )
+        }
+    }
+
     // --- Simulated Cryptographic Verification Terminal ---
     fun verifyKeyScope(keyString: String, requiredScope: String) {
         viewModelScope.launch {

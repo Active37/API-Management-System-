@@ -1,7 +1,10 @@
 package com.example
 
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
+import com.example.data.model.ApiKey
+import com.example.data.model.Role
 import com.example.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -21,8 +24,37 @@ class GreetingScreenshotTest {
 
   @Test
   fun greeting_screenshot() {
-    composeTestRule.setContent { MyApplicationTheme { Greeting("Robolectric") } }
+    val expiredKey = ApiKey(
+      id = 1,
+      name = "Production API Gateway Test",
+      keyString = "sk_prod_expired_token_12345",
+      environment = "Production",
+      roleId = 1,
+      isActive = true,
+      createdAt = System.currentTimeMillis() - (105L * 24 * 60 * 60 * 1000) // 105 days old (exceeds 90-day threshold)
+    )
+    
+    val mockRole = Role(
+      id = 1,
+      name = "Payment Processor",
+      description = "Full control",
+      permissions = "api:write,billing:manage"
+    )
 
-    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
+    composeTestRule.setContent { 
+      MyApplicationTheme { 
+        ApiKeyCard(
+          apiKey = expiredKey,
+          role = mockRole,
+          onToggle = {},
+          onDelete = {},
+          onRotate = {},
+          onSimulateAging = {},
+          context = LocalContext.current
+        )
+      } 
+    }
+
+    composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/expired_key_warning.png")
   }
 }

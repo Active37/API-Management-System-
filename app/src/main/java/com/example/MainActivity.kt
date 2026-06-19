@@ -770,6 +770,8 @@ fun KeysTabScreen(
                         role = boundRole,
                         onToggle = { viewModel.toggleKeyStatus(apiKey) },
                         onDelete = { viewModel.deleteApiKey(apiKey) },
+                        onRotate = { viewModel.rotateApiKey(apiKey) },
+                        onSimulateAging = { viewModel.simulateAging(apiKey) },
                         context = context
                     )
                 }
@@ -784,10 +786,15 @@ fun ApiKeyCard(
     role: Role?,
     onToggle: () -> Unit,
     onDelete: () -> Unit,
+    onRotate: () -> Unit,
+    onSimulateAging: () -> Unit,
     context: Context
 ) {
     var revealed by remember { mutableStateOf(false) }
     var isCopied by remember { mutableStateOf(false) }
+
+    val ageMs = (System.currentTimeMillis() - apiKey.createdAt).coerceAtLeast(0)
+    val ageDays = ageMs / (1000L * 60 * 60 * 24)
 
     LaunchedEffect(isCopied) {
         if (isCopied) {
@@ -858,6 +865,25 @@ fun ApiKeyCard(
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Age Tag
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(if (ageDays > 90) WarningOrange.copy(alpha = 0.15f) else NeonEmerald.copy(alpha = 0.15f))
+                                .border(1.dp, if (ageDays > 90) WarningOrange.copy(alpha = 0.5f) else NeonEmerald.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "AGE: ${ageDays}D",
+                                color = if (ageDays > 90) WarningOrange else NeonEmerald,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
                     }
                 }
 
@@ -873,6 +899,43 @@ fun ApiKeyCard(
                     ),
                     modifier = Modifier.testTag("toggle_key_${apiKey.id}")
                 )
+            }
+
+            // Expiry/Rotation Warning Alert if > 90 days active
+            if (ageDays > 90) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(WarningOrange.copy(alpha = 0.1f))
+                        .border(1.dp, WarningOrange.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = "Expired warning",
+                        tint = WarningOrange,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "ROTATION ADVISED: ACTIVE FOR > 90 DAYS",
+                            color = WarningOrange,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "This credential was generated $ageDays days ago. Security guidelines recommend rotating API keys every 90 days.",
+                            color = TextWhite.copy(alpha = 0.8f),
+                            fontSize = 9.sp,
+                            lineHeight = 12.sp
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -910,7 +973,7 @@ fun ApiKeyCard(
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
-                            imageVector = if (revealed) Icons.Default.Lock else Icons.Default.Lock, // Lock serves as blind/reveal alternative in standard core icons
+                            imageVector = Icons.Default.Lock, // Lock serves as blind/reveal alternative
                             contentDescription = "Toggle blind reveal",
                             tint = TextMuted,
                             modifier = Modifier.size(16.dp)
@@ -968,11 +1031,61 @@ fun ApiKeyCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Delete key item action
-            Box(
+            // Active helper actions for Rotating and Aging (interactivity)
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.BottomEnd
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(
+                        onClick = onRotate,
+                        colors = ButtonDefaults.textButtonColors(contentColor = NeonCyan),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .height(28.dp)
+                            .testTag("rotate_key_button_${apiKey.id}")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Rotate credentials",
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "ROTATE KEY",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    if (ageDays <= 90) {
+                        TextButton(
+                            onClick = onSimulateAging,
+                            colors = ButtonDefaults.textButtonColors(contentColor = TextMuted),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .height(28.dp)
+                                .testTag("simulate_aging_button_${apiKey.id}")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Build, // Surrogate secure icon from core
+                                contentDescription = "Simulate aging",
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "MOCK AGE >90D",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
+
+                // Delete key item action
                 IconButton(
                     onClick = { onDelete() },
                     modifier = Modifier

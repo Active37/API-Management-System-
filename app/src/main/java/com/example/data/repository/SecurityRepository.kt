@@ -67,7 +67,8 @@ class SecurityRepository(
                 keyString = "sk_prod_7a2b918d0c3e4f50",
                 environment = "Production",
                 roleId = adminId,
-                isActive = true
+                isActive = true,
+                createdAt = System.currentTimeMillis() - (105L * 24 * 60 * 60 * 1000) // 105 days old
             )
             val stagingKey = ApiKey(
                 name = "GitHub Webhook Event-Bus",
