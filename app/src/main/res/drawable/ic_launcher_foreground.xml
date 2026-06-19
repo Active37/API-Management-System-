@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Shield Boundary (Cyan Glowing Ring) -->
+    <path
+        android:fillColor="#06B6D4"
+        android:pathData="M54,20 C38,20 30,26 30,40 L30,68 C30,84 54,92 54,92 C54,92 78,84 78,68 L78,40 C78,26 70,20 54,20 Z" />
+    <!-- Inner Dark Shield Backdrop -->
+    <path
+        android:fillColor="#030712"
+        android:pathData="M54,24 C41,24 34,29 34,42 L34,66 C34,79 54,86 54,86 C54,86 74,79 74,66 L74,42 C74,29 67,24 54,24 Z" />
+    <!-- Glowing Security Key Core (Emerald Authority) -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,38 C49.5,38 46,41.5 46,46 C46,49.1 47.7,51.8 50,53.2 L50,68 C50,70.2 51.8,72 54,72 C56.2,72 58,70.2 58,68 L58,53.2 C60.3,51.8 62,49.1 62,46 C62,41.5 58.5,38 54,38 Z M54,48 C52.9,48 52,47.1 52,46 C52,44.9 52.9,44 54,44 C55.1,44 56,44.9 56,46 C56,47.1 55.1,48 54,48 Z" />
+</vector>

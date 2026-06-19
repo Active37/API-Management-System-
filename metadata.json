@@ -1,0 +1,6 @@
+{
+  "name": "API Key & RBAC Console",
+  "description": "Developer security console to manage API keys, configure roles and permissions, perform simulated system token validation, and run AI-powered key-access rule audits.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
